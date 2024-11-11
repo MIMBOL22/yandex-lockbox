@@ -1,6 +1,8 @@
-name: 'The name of your action here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Yandex Lockbox Sync'
+description:
+  'Action for getting secrets from Yandex Lockbox by prefix / Action для
+  загрузки секретов из Lockbox по префиксу'
+author: 'MIMBOL22'
 
 # Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
@@ -9,15 +11,24 @@ branding:
 
 # Define your inputs here.
 inputs:
-  milliseconds:
-    description: 'Your input description here'
+  iam_token:
+    description: 'Your IAM Token / Ваш IAM токен'
     required: true
-    default: '1000'
+  folder_id:
+    description: 'ID of folder in your Cloud / ID вашей папки в облаке'
+    required: true
+  secret_prefix:
+    description: 'Prefix of secrets / Префикс ваших секретов'
+    required: true
+  is_clean_prefix:
+    description:
+      'Is need to delete prefix in variables (true or false) / Нужно ли удалять
+      префикс в итоговой переменной (true или false)'
+    required: false
+    default: false
 
 # Define your outputs here.
 outputs:
-  time:
-    description: 'Your output description here'
 
 runs:
   using: node20

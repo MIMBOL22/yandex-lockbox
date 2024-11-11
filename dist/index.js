@@ -25624,6 +25624,67 @@ module.exports = {
 }
 
 
+            /***/
+        }),
+
+        /***/ 8819:
+        /***/ ((__unused_webpack_module, exports) => {
+
+            "use strict";
+
+            Object.defineProperty(exports, "__esModule", ({value: true}));
+            exports.lockboxFetch = lockboxFetch;
+            exports.secretList = secretList;
+            exports.resolveSecret = resolveSecret;
+            const PROTO = 'https://';
+            const YANDEX_CL_API_BASE_HOST = 'api.cloud.yandex.net'; // CL - Cloud
+            const YANDEX_LB_API_BASE_URL = 'lockbox.' + YANDEX_CL_API_BASE_HOST + '/lockbox/v1'; // LB - LockBox
+            const YANDEX_LB_PAYLOAD_API_BASE_URL = 'payload.' + YANDEX_LB_API_BASE_URL; // LB - LockBox
+            async function lockboxFetch(url, iam) {
+                return fetch(url, {
+                    headers: new Headers({Authorization: 'Bearer ' + iam})
+                }).then(r => r.json());
+            }
+
+            /**
+             * Get list of Lockbox.
+             * @param folder_id ID of Cloud folder.
+             * @param iam The IAM Token
+             * @returns {Promise<string>} List of secrets
+             */
+            async function secretList(folder_id, iam) {
+                const apiResponse = await lockboxFetch(PROTO + YANDEX_LB_API_BASE_URL + '/secrets?folder_id=' + folder_id, iam);
+                if (apiResponse.code === undefined) {
+                    return apiResponse.secrets;
+                } else {
+                    throw new Error(apiResponse.message);
+                }
+            }
+
+            /**
+             * Get value of secret.
+             * @param secret_id ID of Secret.
+             * @param iam The IAM Token
+             * @returns {Promise<string>} Resolve value of secret
+             */
+            async function resolveSecret(secret_id, iam) {
+                const apiResponse = await lockboxFetch(PROTO +
+                    YANDEX_LB_PAYLOAD_API_BASE_URL +
+                    '/secrets/' +
+                    secret_id +
+                    '/payload', iam);
+                if (apiResponse?.code === undefined) {
+                    const entry = apiResponse?.entries[0];
+                    if (entry) {
+                        return entry.textValue || entry.binaryValue;
+                    }
+                    throw new Error('Action error: Value of secret not found');
+                } else {
+                    throw new Error(apiResponse.message);
+                }
+}
+
+
 /***/ }),
 
 /***/ 1730:
@@ -25657,52 +25718,66 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = run;
 const core = __importStar(__nccwpck_require__(7484));
-const wait_1 = __nccwpck_require__(910);
+            const lockbox_1 = __nccwpck_require__(8819);
+
+// import { } from './lockbox'
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 async function run() {
     try {
-        const ms = core.getInput('milliseconds');
-        // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-        core.debug(`Waiting ${ms} milliseconds ...`);
-        // Log the current timestamp, wait, then log the new timestamp
-        core.debug(new Date().toTimeString());
-        await (0, wait_1.wait)(parseInt(ms, 10));
-        core.debug(new Date().toTimeString());
-        // Set outputs for other workflow steps to use
-        core.setOutput('time', new Date().toTimeString());
+        // Получение входных данных
+        // Getting input parameters
+        const iam = core.getInput('iam_token');
+        const folder_id = core.getInput('folder_id');
+        const prefix = core.getInput('secret_prefix');
+        const is_clean_prefix = core.getBooleanInput('is_clean_prefix');
+        // На всякий случай, чтобы не проболтаться, запрещаем открытый вывод в консоль токена
+        // Block logging in console iam token for security
+        core.setSecret(iam);
+        // Получаем список секретов в папке
+        // Get list of secrets in folder
+        core.debug(`Request secrets for folder ${folder_id}`);
+        const secrets = await (0, lockbox_1.secretList)(folder_id, iam);
+        core.debug(`Was loaded ${secrets.length} secrets`);
+        // Проходимся по секретам в папке
+        // Foreach in secret list
+        secrets.map(async (secret) => {
+            const secret_keys = secret.currentVersion.payloadEntryKeys;
+            // Секреты ключ с нужным префиксом
+            // Keys of secret which contains set prefix
+            const keys_with_prefix = secret_keys.filter(key => key.startsWith(prefix));
+            // Если у секрета таких ключей нет - уведомляем в дебаге и пропускаем
+            // If secret doesn't contains these keys log it in console and skip
+            if (keys_with_prefix.length == 0) {
+                core.debug(`Secret with ID ${secret.id} was skipped`);
+                return;
+            }
+            // Запрашиваем секрет и запрещаем его прямой вывод
+            // Get value of secret and block logging in console it
+            core.debug(`Request value for secret with ID ${secret.id}`);
+            const secret_value = await (0, lockbox_1.resolveSecret)(secret.id, iam);
+            core.setSecret(secret_value);
+            // Для каждого ключа секрета
+            // For each key of secret
+            keys_with_prefix.map(key => {
+                if (is_clean_prefix)
+                    key = key.replace(prefix, '');
+                core.exportVariable('LOCKBOX_' + key.toUpperCase().replace('/', '_'), secret_value);
+                core.debug('LOCKBOX_' + key.toUpperCase().replace('/', '_'));
+                core.debug(':');
+                core.debug(secret_value);
+                core.debug('\n');
+            });
+        });
+        // core.setOutput('time', new Date().toTimeString())
     }
     catch (error) {
         // Fail the workflow run if an error occurs
         if (error instanceof Error)
             core.setFailed(error.message);
     }
-}
-
-
-/***/ }),
-
-/***/ 910:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.wait = wait;
-/**
- * Wait for a number of milliseconds.
- * @param milliseconds The number of milliseconds to wait.
- * @returns {Promise<string>} Resolves with 'done!' after the wait is over.
- */
-async function wait(milliseconds) {
-    return new Promise(resolve => {
-        if (isNaN(milliseconds)) {
-            throw new Error('milliseconds not a number');
-        }
-        setTimeout(() => resolve('done!'), milliseconds);
-    });
 }
 
 

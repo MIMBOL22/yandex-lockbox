@@ -1,27 +1,28 @@
 {
-  "name": "typescript-action",
-  "description": "GitHub Actions TypeScript template",
-  "version": "0.0.0",
-  "author": "",
-  "private": true,
-  "homepage": "https://github.com/actions/typescript-action",
+  "name": "@actions/yandex-lockbo",
+  "description": "GitHub Actions for getting secrets from Yandex Lockbox by prefix",
+  "version": "1.0.0",
+  "author": "MIMBOL",
+  "private": false,
+  "homepage": "https://github.com/MIMBOL22/yandex-lockbox",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/MIMBOL22/yandex-lockbox.git"
   },
   "bugs": {
-    "url": "https://github.com/actions/typescript-action/issues"
+    "url": "https://github.com/MIMBOL22/yandex-lockbox/issues"
   },
   "keywords": [
     "actions",
-    "node",
-    "setup"
+    "yandex",
+    "lockbox",
+    "github"
   ],
   "exports": {
     ".": "./dist/index.js"
   },
   "engines": {
-    "node": ">=21"
+    "node": ">=20"
   },
   "scripts": {
     "bundle": "npm run format:write && npm run package",
